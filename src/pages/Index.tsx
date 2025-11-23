@@ -1,6 +1,7 @@
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { ThreatIndicators } from "@/components/dashboard/ThreatIndicators";
 import { HeatmapPanel } from "@/components/dashboard/HeatmapPanel";
+import { MapPanel } from "@/components/dashboard/MapPanel";
 import { VerificationPipeline } from "@/components/dashboard/VerificationPipeline";
 import { AnalyticsPanel } from "@/components/dashboard/AnalyticsPanel";
 
@@ -18,6 +19,11 @@ const Index = () => {
         {/* Regional Heatmap */}
         <section>
           <HeatmapPanel />
+        </section>
+
+        {/* Interactive Crisis Map */}
+        <section>
+          <MapPanel />
         </section>
 
         {/* Two-column layout for Pipeline and Analytics */}
