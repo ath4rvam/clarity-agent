@@ -51,7 +51,6 @@ export const MapPanel = () => {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             />
-            
             {mockRegionData.map((region, index) => (
               <CircleMarker
                 key={index}
@@ -64,7 +63,7 @@ export const MapPanel = () => {
                 }}
                 radius={10 + region.activeClaims * 2}
               >
-                <Popup className="crisis-popup">
+                <Popup>
                   <div className="p-2 min-w-[220px]">
                     <h3 className="font-bold text-base mb-3 text-foreground flex items-center gap-2">
                       {region.region}
