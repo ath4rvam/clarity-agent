@@ -66,7 +66,7 @@ const MapView = () => {
   return (
     <div className="w-full h-[600px] rounded-lg overflow-hidden border border-border">
       <MapContainer
-        center={[78.9629, 30.0668] as [number, number]}
+        center={[30.0668, 78.9629]}
         zoom={8}
         className="h-full w-full"
         scrollWheelZoom={true}
@@ -79,7 +79,7 @@ const MapView = () => {
         {hotspots.map((hotspot, index) => (
           <CircleMarker
             key={index}
-            center={[hotspot.lat, hotspot.lng] as [number, number]}
+            center={[hotspot.lat, hotspot.lng]}
             pathOptions={{
               fillColor: getCategoryColor(hotspot.category),
               color: getCategoryColor(hotspot.category),
@@ -91,7 +91,9 @@ const MapView = () => {
             <Popup>
               <div className="p-2 min-w-[200px]">
                 <h3 className="font-bold text-base mb-2">{hotspot.region}</h3>
-                <Badge className="mb-3 capitalize">{hotspot.category}</Badge>
+                <span className="inline-block mb-3 px-2 py-1 text-xs font-semibold rounded-md bg-primary text-primary-foreground capitalize">
+                  {hotspot.category}
+                </span>
                 <div className="space-y-1">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Active Claims:</span>
