@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
+import { useEffect, useRef, useState } from 'react';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { mockRegionData } from "@/data/mockCrisisData";
-import { Map as MapIcon, Loader2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Map, AlertCircle } from "lucide-react";
 
 const threatColors = {
   critical: '#ef4444',
@@ -14,24 +15,120 @@ const threatColors = {
 };
 
 export const MapPanel = () => {
+  const mapContainer = useRef<HTMLDivElement>(null);
+  const map = useRef<mapboxgl.Map | null>(null);
+  const [mapboxToken, setMapboxToken] = useState('');
   const [isMapReady, setIsMapReady] = useState(false);
+  const [tokenInput, setTokenInput] = useState('');
+
+  const initializeMap = (token: string) => {
+    if (!mapContainer.current || map.current) return;
+
+    mapboxgl.accessToken = token;
+    
+    map.current = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: 'mapbox://styles/mapbox/dark-v11',
+      center: [78.9629, 30.0668], // Uttarakhand center
+      zoom: 8,
+      pitch: 45,
+    });
+
+    map.current.addControl(
+      new mapboxgl.NavigationControl({
+        visualizePitch: true,
+      }),
+      'top-right'
+    );
+
+    map.current.on('load', () => {
+      setIsMapReady(true);
+      
+      // Add markers for each region
+      mockRegionData.forEach((region) => {
+        if (!map.current) return;
+
+        // Create custom marker element
+        const el = document.createElement('div');
+        el.className = 'crisis-marker';
+        el.style.backgroundColor = threatColors[region.threatLevel];
+        el.style.width = `${20 + region.activeClaims * 2}px`;
+        el.style.height = `${20 + region.activeClaims * 2}px`;
+        el.style.borderRadius = '50%';
+        el.style.border = '3px solid rgba(255, 255, 255, 0.8)';
+        el.style.cursor = 'pointer';
+        el.style.boxShadow = `0 0 20px ${threatColors[region.threatLevel]}`;
+        el.style.transition = 'all 0.3s ease';
+        
+        el.addEventListener('mouseenter', () => {
+          el.style.transform = 'scale(1.3)';
+        });
+        
+        el.addEventListener('mouseleave', () => {
+          el.style.transform = 'scale(1)';
+        });
+
+        // Create popup content
+        const popup = new mapboxgl.Popup({ 
+          offset: 25,
+          className: 'crisis-popup'
+        }).setHTML(`
+          <div style="padding: 8px; min-width: 200px;">
+            <h3 style="font-weight: bold; font-size: 16px; margin-bottom: 8px; color: #fff;">${region.region}</h3>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <span style="color: #94a3b8;">Threat Level:</span>
+              <span style="color: ${threatColors[region.threatLevel]}; font-weight: bold; text-transform: uppercase;">${region.threatLevel}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <span style="color: #94a3b8;">Active Claims:</span>
+              <span style="color: #fff; font-weight: bold;">${region.activeClaims}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <span style="color: #94a3b8;">False Claims:</span>
+              <span style="color: #ef4444; font-weight: bold;">${region.falseClaims}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: #94a3b8;">Verified:</span>
+              <span style="color: #22c55e; font-weight: bold;">${region.verifiedClaims}</span>
+            </div>
+          </div>
+        `);
+
+        // Add marker to map
+        new mapboxgl.Marker(el)
+          .setLngLat([region.lng, region.lat])
+          .setPopup(popup)
+          .addTo(map.current);
+      });
+
+      // Add atmospheric effects
+      map.current.setFog({
+        color: 'rgb(30, 30, 40)',
+        'high-color': 'rgb(50, 50, 60)',
+        'horizon-blend': 0.1,
+      });
+    });
+  };
+
+  const handleTokenSubmit = () => {
+    if (tokenInput.trim()) {
+      setMapboxToken(tokenInput.trim());
+      initializeMap(tokenInput.trim());
+    }
+  };
 
   useEffect(() => {
-    // Simulate map loading
-    const timer = setTimeout(() => setIsMapReady(true), 500);
-    return () => clearTimeout(timer);
+    return () => {
+      map.current?.remove();
+    };
   }, []);
-
-  const getThreatColor = (level: string): string => {
-    return threatColors[level as keyof typeof threatColors] || threatColors.low;
-  };
 
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
-            <MapIcon className="h-5 w-5" />
+            <Map className="h-5 w-5" />
             Crisis Map - Geospatial Intelligence
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
@@ -40,103 +137,86 @@ export const MapPanel = () => {
         </div>
       </div>
 
-      <div className="relative">
-        {!isMapReady ? (
-          <div className="flex items-center justify-center h-[500px] bg-card rounded-lg border border-border">
-            <div className="flex flex-col items-center gap-4">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-muted-foreground">Loading map...</p>
+      {!mapboxToken ? (
+        <div className="space-y-4">
+          <div className="flex items-start gap-2 p-4 bg-info/10 border border-info/20 rounded-lg">
+            <AlertCircle className="h-5 w-5 text-info mt-0.5 flex-shrink-0" />
+            <div className="text-sm">
+              <p className="text-foreground font-medium mb-2">Mapbox Token Required</p>
+              <p className="text-muted-foreground mb-3">
+                To display the interactive crisis map, please enter your Mapbox public token. 
+                Get one for free at{' '}
+                <a 
+                  href="https://mapbox.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  mapbox.com
+                </a>
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  placeholder="pk.eyJ1Ijoi..."
+                  value={tokenInput}
+                  onChange={(e) => setTokenInput(e.target.value)}
+                  className="flex-1"
+                />
+                <Button onClick={handleTokenSubmit} variant="default">
+                  Load Map
+                </Button>
+              </div>
             </div>
           </div>
-        ) : (
-          <>
-            <div className="w-full h-[500px] rounded-lg overflow-hidden border border-border">
-              <MapContainer
-                center={[30.0668, 78.9629] as [number, number]}
-                zoom={8}
-                style={{ height: '100%', width: '100%' }}
-                scrollWheelZoom={true}
-              >
-                <TileLayer
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                />
-                {mockRegionData.map((region, index) => (
-                  <CircleMarker
-                    key={`marker-${index}-${region.region}`}
-                    center={[region.lat, region.lng] as [number, number]}
-                    pathOptions={{
-                      fillColor: getThreatColor(region.threatLevel),
-                      color: getThreatColor(region.threatLevel),
-                      fillOpacity: 0.6,
-                      weight: 2,
-                    }}
-                    radius={10 + region.activeClaims}
-                  >
-                    <Popup>
-                      <div className="p-2 min-w-[200px]">
-                        <h3 className="font-bold text-base mb-2">{region.region}</h3>
-                        <div className="space-y-1">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-muted-foreground">Threat Level:</span>
-                            <Badge 
-                              variant="outline" 
-                              style={{ 
-                                borderColor: getThreatColor(region.threatLevel),
-                                color: getThreatColor(region.threatLevel)
-                              }}
-                            >
-                              {region.threatLevel.toUpperCase()}
-                            </Badge>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm text-muted-foreground">Active Claims:</span>
-                            <span className="font-bold text-sm">{region.activeClaims}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm text-muted-foreground">False Claims:</span>
-                            <span className="font-bold text-sm" style={{ color: threatColors.critical }}>{region.falseClaims}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm text-muted-foreground">Verified:</span>
-                            <span className="font-bold text-sm" style={{ color: threatColors.low }}>{region.verifiedClaims}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </Popup>
-                  </CircleMarker>
-                ))}
-              </MapContainer>
+          
+          {/* Placeholder */}
+          <div className="relative w-full h-[500px] bg-secondary/30 rounded-lg flex items-center justify-center border border-border">
+            <div className="text-center">
+              <Map className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">Enter your Mapbox token to view the crisis map</p>
             </div>
-            
-            {/* Legend */}
-            <div className="absolute bottom-4 left-4 bg-background/95 backdrop-blur-sm p-4 rounded-lg border border-border shadow-lg">
-              <p className="text-xs text-muted-foreground mb-2 font-semibold">THREAT LEVELS</p>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: threatColors.critical }}></div>
-                  <span className="text-xs text-foreground">Critical</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: threatColors.high }}></div>
-                  <span className="text-xs text-foreground">High</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: threatColors.medium }}></div>
-                  <span className="text-xs text-foreground">Medium</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: threatColors.low }}></div>
-                  <span className="text-xs text-foreground">Low</span>
-                </div>
+          </div>
+        </div>
+      ) : (
+        <div className="relative">
+          <div ref={mapContainer} className="w-full h-[500px] rounded-lg" />
+          {!isMapReady && (
+            <div className="absolute inset-0 bg-secondary/30 rounded-lg flex items-center justify-center">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading crisis map...</p>
               </div>
-              <p className="text-xs text-muted-foreground mt-3">
-                Circle size = claim volume
-              </p>
             </div>
-          </>
-        )}
-      </div>
+          )}
+          
+          {/* Legend */}
+          <div className="absolute bottom-4 left-4 bg-background/90 backdrop-blur-sm p-4 rounded-lg border border-border">
+            <p className="text-xs text-muted-foreground mb-2 font-semibold">THREAT LEVELS</p>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: threatColors.critical }}></div>
+                <span className="text-xs text-foreground">Critical</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: threatColors.high }}></div>
+                <span className="text-xs text-foreground">High</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: threatColors.medium }}></div>
+                <span className="text-xs text-foreground">Medium</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: threatColors.low }}></div>
+                <span className="text-xs text-foreground">Low</span>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-3">
+              Marker size = claim volume
+            </p>
+          </div>
+        </div>
+      )}
     </Card>
   );
 };
