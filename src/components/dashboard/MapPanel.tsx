@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Card } from "@/components/ui/card";
 import { mockRegionData } from "@/data/mockCrisisData";
-import { Map, Loader2 } from "lucide-react";
+import { Map as MapIcon, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const threatColors = {
@@ -31,7 +31,7 @@ export const MapPanel = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
-            <Map className="h-5 w-5" />
+            <MapIcon className="h-5 w-5" />
             Crisis Map - Geospatial Intelligence
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
@@ -52,20 +52,19 @@ export const MapPanel = () => {
           <>
             <div className="w-full h-[500px] rounded-lg overflow-hidden border border-border">
               <MapContainer
-                center={[30.0668, 78.9629]}
+                center={[30.0668, 78.9629] as [number, number]}
                 zoom={8}
-                className="h-full w-full"
+                style={{ height: '100%', width: '100%' }}
                 scrollWheelZoom={true}
               >
                 <TileLayer
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
-                
                 {mockRegionData.map((region, index) => (
                   <CircleMarker
-                    key={index}
-                    center={[region.lat, region.lng]}
+                    key={`marker-${index}-${region.region}`}
+                    center={[region.lat, region.lng] as [number, number]}
                     pathOptions={{
                       fillColor: getThreatColor(region.threatLevel),
                       color: getThreatColor(region.threatLevel),
